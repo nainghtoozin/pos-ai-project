@@ -67,6 +67,12 @@ class PermissionSeeder extends Seeder
             'stock.transfer',
             'stock.view',
 
+            //tax
+            'tax.view',
+            'tax.create',
+            'tax.edit',
+            'tax.delete',
+
             // Report
             'report.view',
 

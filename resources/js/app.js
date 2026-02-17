@@ -8,3 +8,6 @@ Alpine.plugin(collapse);
 window.Alpine = Alpine;
 
 Alpine.start();
+
+import './modules/product-search';
+import './modules/wysiwyg';

@@ -84,7 +84,7 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('products.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('products.*') ? 'text-white bg-slate-700' : '' }}">
                             <i class="fas fa-box-open w-4"></i>
                             <span>Products</span>
                         </a>
@@ -244,6 +244,10 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
+                        <a href="{{ route('taxes.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('taxes.*') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-percent w-4"></i>
+                            <span>Tax</span>
+                        </a>
                         <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
                             <i class="fas fa-building w-4"></i>
                             <span>Business Settings</span>
@@ -314,7 +318,7 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
-                        <a href="#" @click="closeSidebar()" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('products.index') }}" @click="closeSidebar()" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('products.*') ? 'text-white bg-slate-700' : '' }}">
                             <i class="fas fa-box-open w-4"></i>
                             <span>Products</span>
                         </a>
@@ -410,6 +414,10 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
+                        <a href="{{ route('taxes.index') }}" @click="closeSidebar()" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('taxes.*') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-percent w-4"></i>
+                            <span>Tax</span>
+                        </a>
                         <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
                             <i class="fas fa-building w-4"></i>
                             <span>Business Settings</span>
