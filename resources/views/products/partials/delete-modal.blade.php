@@ -1,5 +1,5 @@
 <div x-data="{ open: false, url: '', name: '' }"
-     x-on:product-delete.window="url = $event.detail.url; name = $event.detail.name; open = true"
+     x-on:delete-product.window="url = $event.detail.delete_url; name = $event.detail.name; open = true"
      x-on:keydown.escape.window="open = false"
      class="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4"
      x-cloak

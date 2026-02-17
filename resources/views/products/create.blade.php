@@ -4,7 +4,12 @@
 @section('page-title', 'Create Product')
 
 @section('content')
-<div class="min-h-screen bg-gray-100 py-10">
+<div class="min-h-screen bg-gray-100 py-10" x-data="{
+    hasBarcode: true,
+    init() {
+        this.hasBarcode = {{ old('has_barcode', true) ? 'true' : 'false' }};
+    }
+}">
     <div class="mx-auto max-w-5xl">
         <div class="rounded-2xl bg-white p-8 shadow-md">
             <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -37,12 +42,24 @@
                 </div>
 
                 <div class="grid gap-6 md:grid-cols-3">
-                    <div>
+                    <div class="flex items-center">
+                        <label class="flex items-center gap-3 text-sm font-semibold text-gray-700">
+                            <input type="hidden" name="has_barcode" value="0">
+                            <input type="checkbox" x-model="hasBarcode" name="has_barcode" value="1" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" {{ old('has_barcode', true) ? 'checked' : '' }}>
+                            Has Barcode
+                        </label>
+                    </div>
+                    <div class="md:col-span-2">
                         <label for="barcode" class="block text-sm font-semibold text-gray-700">Barcode</label>
-                        <input type="text" id="barcode" name="barcode" value="{{ old('barcode') }}" required autocomplete="off"
-                               class="mt-2 w-full rounded-xl border-gray-200 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <input type="text" id="barcode" name="barcode" value="{{ old('barcode') }}" :required="hasBarcode" autocomplete="off"
+                               :disabled="!hasBarcode"
+                               :class="!hasBarcode ? 'bg-gray-100' : ''"
+                               class="mt-2 w-full rounded-xl border-gray-200 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100">
                         @error('barcode')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                     </div>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-3">
                     <div>
                         <label for="sku" class="block text-sm font-semibold text-gray-700">SKU</label>
                         <div class="mt-2 flex">
@@ -104,6 +121,29 @@
                             @endforeach
                         </select>
                         @error('tax_id')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        <label for="purchase_price" class="block text-sm font-semibold text-gray-700">Purchase Price</label>
+                        <input type="number" id="purchase_price" name="purchase_price" value="{{ old('purchase_price') }}" step="0.0001" min="0" autocomplete="off"
+                               class="mt-2 w-full rounded-xl border-gray-200 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="For opening stock">
+                        @error('purchase_price')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label for="sale_price" class="block text-sm font-semibold text-gray-700">Sale Price</label>
+                        <input type="number" id="sale_price" name="sale_price" value="{{ old('sale_price') }}" required step="0.0001" min="0" autocomplete="off"
+                               class="mt-2 w-full rounded-xl border-gray-200 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('sale_price')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label for="opening_stock" class="block text-sm font-semibold text-gray-700">Opening Stock</label>
+                        <input type="number" id="opening_stock" name="opening_stock" value="{{ old('opening_stock') }}" min="0" autocomplete="off"
+                               class="mt-2 w-full rounded-xl border-gray-200 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="Initial quantity">
+                        @error('opening_stock')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                     </div>
                 </div>
 

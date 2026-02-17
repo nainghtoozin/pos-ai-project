@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class StoreProductRequest extends FormRequest
 {
@@ -24,9 +25,16 @@ class StoreProductRequest extends FormRequest
 
     public function rules(): array
     {
+        $hasBarcode = $this->boolean('has_barcode', true);
+
         return [
             'name' => ['required', 'string', 'max:255'],
-            'barcode' => ['required', 'string', 'max:255', 'unique:products,barcode'],
+            'barcode' => [
+                $hasBarcode ? 'required' : 'nullable',
+                'string',
+                'max:255',
+                Rule::unique('products', 'barcode')->whereNotNull('barcode'),
+            ],
             'sku' => ['required', 'string', 'max:255', 'unique:products,sku'],
             'category_id' => ['required', 'exists:categories,id'],
             'brand_id' => ['required', 'exists:brands,id'],
@@ -35,6 +43,10 @@ class StoreProductRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
+            'has_barcode' => ['sometimes', 'boolean'],
+            'sale_price' => ['required', 'numeric', 'min:0', 'decimal:0,4'],
+            'purchase_price' => ['nullable', 'numeric', 'min:0', 'decimal:0,4'],
+            'opening_stock' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

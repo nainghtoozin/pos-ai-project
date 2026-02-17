@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
@@ -40,6 +41,16 @@ Route::middleware('auth')->group(function () {
 
     // Product management routes
     Route::resource('products', ProductController::class);
+    Route::patch('products/{product}/opening-stock', [ProductController::class, 'updateOpeningStock'])
+        ->name('products.updateOpeningStock');
+    Route::get('products/{product}/latest-purchase-price', [ProductController::class, 'getLatestPurchasePrice'])
+        ->name('products.latestPurchasePrice');
+
+    // Stock Adjustment routes
+    Route::post('stock-adjustment/{product}', [StockAdjustmentController::class, 'adjust'])
+        ->name('stock-adjustment.adjust');
+    Route::get('stock-adjustment/{product}/latest-price', [StockAdjustmentController::class, 'getLatestPurchasePrice'])
+        ->name('stock-adjustment.latestPrice');
 
     // Tax management routes
     Route::resource('taxes', TaxController::class);
