@@ -77,7 +77,15 @@ class ProductController extends Controller
                 ->pluck('id');
         }
 
-        $products = Product::with(['category', 'brand', 'unit', 'tax'])
+        $products = Product::select('products.*')
+            ->selectSub(
+                PurchaseLine::select('cost_price')
+                    ->whereColumn('purchase_lines.product_id', 'products.id')
+                    ->orderByDesc('purchase_lines.id')
+                    ->limit(1),
+                'latest_purchase_price'
+            )
+            ->with(['category', 'brand', 'unit', 'tax'])
             ->whereIn('id', $productIds)
             ->orderBy('id', 'desc')
             ->paginate(12)
@@ -189,6 +197,10 @@ class ProductController extends Controller
         abort_unless(auth()->user()->can('product.edit'), 403);
 
         $product->load($this->withRelations);
+        
+        $product->latest_purchase_price = PurchaseLine::where('product_id', $product->id)
+            ->latest()
+            ->value('cost_price');
 
         return view('products.edit', $this->formData() + compact('product'));
     }

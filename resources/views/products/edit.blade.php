@@ -121,7 +121,7 @@
                 <div class="grid gap-6 md:grid-cols-2">
                     <div>
                         <label for="purchase_price" class="block text-sm font-semibold text-gray-700">Purchase Price</label>
-                        <input type="number" id="purchase_price" name="purchase_price" value="{{ old('purchase_price', $product->purchase_price ?? '') }}" step="0.0001" min="0" autocomplete="off"
+                        <input type="number" id="purchase_price" name="purchase_price" value="{{ old('purchase_price', $product->latest_purchase_price ?? '') }}" step="0.0001" min="0" autocomplete="off"
                                class="mt-2 w-full rounded-xl border-gray-200 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="Cost price">
                         @error('purchase_price')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
