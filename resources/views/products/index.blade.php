@@ -42,6 +42,15 @@
                     </div>
                 @endif
 
+                @if (session('error'))
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div class="flex items-center gap-2 text-red-700">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span class="font-medium">{{ session('error') }}</span>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="max-w-2xl">
                     <form method="GET" action="{{ route('products.index') }}" class="flex flex-col sm:flex-row gap-3">
                         <div class="relative flex-1">

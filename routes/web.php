@@ -6,6 +6,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
@@ -51,6 +52,10 @@ Route::middleware('auth')->group(function () {
         ->name('stock-adjustment.adjust');
     Route::get('stock-adjustment/{product}/latest-price', [StockAdjustmentController::class, 'getLatestPurchasePrice'])
         ->name('stock-adjustment.latestPrice');
+
+    // Stock Management routes
+    Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
+    Route::get('stocks/{product}', [StockController::class, 'show'])->name('stocks.show');
 
     // Tax management routes
     Route::resource('taxes', TaxController::class);

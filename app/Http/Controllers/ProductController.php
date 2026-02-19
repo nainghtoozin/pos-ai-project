@@ -36,7 +36,20 @@ class ProductController extends Controller
 
         $lowStockThreshold = 10;
 
-        $productIds = Product::single()
+        $query = Product::select('products.*')
+            ->selectSub(
+                PurchaseLine::select('cost_price')
+                    ->whereColumn('purchase_lines.product_id', 'products.id')
+                    ->orderByDesc('purchase_lines.id')
+                    ->limit(1),
+                'latest_purchase_price'
+            )
+            ->selectSub(
+                ProductStock::select('current_stock')
+                    ->whereColumn('product_stocks.product_id', 'products.id'),
+                'current_stock'
+            )
+            ->with(['category', 'brand', 'unit', 'tax', 'stock'])
             ->when($filters['search'], fn($q) => $q->where(function($query) use ($filters) {
                 $query->where('name', 'like', "%{$filters['search']}%")
                     ->orWhere('sku', 'like', "%{$filters['search']}%")
@@ -46,55 +59,20 @@ class ProductController extends Controller
             ->when($filters['brand_id'], fn($q) => $q->where('brand_id', $filters['brand_id']))
             ->when($filters['is_active'] !== null && $filters['is_active'] !== '', fn($q) => 
                 $q->where('is_active', $filters['is_active'])
-            )
-            ->orderBy('id', 'desc')
-            ->pluck('id');
-
-        $stockData = ProductStock::whereIn('product_id', $productIds)
-            ->pluck('current_stock', 'product_id')
-            ->toArray();
+            );
 
         if ($filters['stock_status']) {
-            $productIds = Product::single()
-                ->when($filters['search'], fn($q) => $q->where(function($query) use ($filters) {
-                    $query->where('name', 'like', "%{$filters['search']}%")
-                        ->orWhere('sku', 'like', "%{$filters['search']}%")
-                        ->orWhere('barcode', 'like', "%{$filters['search']}%");
-                }))
-                ->when($filters['category_id'], fn($q) => $q->where('category_id', $filters['category_id']))
-                ->when($filters['brand_id'], fn($q) => $q->where('brand_id', $filters['brand_id']))
-                ->when($filters['is_active'] !== null && $filters['is_active'] !== '', fn($q) => $q->where('is_active', $filters['is_active']))
-                ->get()
-                ->filter(function ($product) use ($stockData, $filters, $lowStockThreshold) {
-                    $stock = $stockData[$product->id] ?? 0;
-                    return match($filters['stock_status']) {
-                        'in_stock' => $stock > 0,
-                        'out_of_stock' => $stock <= 0,
-                        'low_stock' => $stock > 0 && $stock <= $lowStockThreshold,
-                        default => true,
-                    };
-                })
-                ->pluck('id');
+            $query->whereHas('stock', function($q) use ($filters, $lowStockThreshold) {
+                match($filters['stock_status']) {
+                    'in_stock' => $q->where('current_stock', '>', 0),
+                    'out_of_stock' => $q->where('current_stock', '<=', 0),
+                    'low_stock' => $q->where('current_stock', '>', 0)->where('current_stock', '<=', $lowStockThreshold),
+                    default => null,
+                };
+            });
         }
 
-        $products = Product::select('products.*')
-            ->selectSub(
-                PurchaseLine::select('cost_price')
-                    ->whereColumn('purchase_lines.product_id', 'products.id')
-                    ->orderByDesc('purchase_lines.id')
-                    ->limit(1),
-                'latest_purchase_price'
-            )
-            ->with(['category', 'brand', 'unit', 'tax'])
-            ->whereIn('id', $productIds)
-            ->orderBy('id', 'desc')
-            ->paginate(12)
-            ->withQueryString();
-
-        $products->getCollection()->transform(function ($product) use ($stockData) {
-            $product->current_stock = $stockData[$product->id] ?? 0;
-            return $product;
-        });
+        $products = $query->orderBy('id', 'desc')->paginate(12)->withQueryString();
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json($products);
@@ -247,7 +225,7 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
     }
 
-    public function updateOpeningStock(Request $request, Product $product): JsonResponse
+    public function updateOpeningStock(Request $request, Product $product): RedirectResponse
     {
         abort_unless(auth()->user()->can('product.edit'), 403);
 
@@ -264,15 +242,11 @@ class ProductController extends Controller
 
         $currentStock = ProductStock::where('product_id', $product->id)->value('current_stock') ?? 0;
 
-        // If deduction, validate stock availability
         if ($type === 'deduction' && $quantity > $currentStock) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot deduct more stock than available. Current stock: ' . $currentStock,
-            ], 422);
+            return redirect()->back()->with('error', 'Cannot deduct more stock than available. Current stock: ' . $currentStock);
         }
 
-        DB::transaction(function () use ($product, $quantity, $purchasePrice, $type, $note) {
+        DB::transaction(function () use ($product, $quantity, $purchasePrice, $type, $note, $currentStock) {
             $purchase = Purchase::create([
                 'supplier_id' => null,
                 'purchase_date' => now()->toDateString(),
@@ -299,11 +273,7 @@ class ProductController extends Controller
             );
         });
 
-        return response()->json([
-            'success' => true,
-            'message' => $type === 'deduction' ? 'Stock deducted successfully.' : 'Stock added successfully.',
-            'new_stock' => ProductStock::where('product_id', $product->id)->value('current_stock') ?? 0,
-        ]);
+        return redirect()->route('products.index')->with('success', 'Stock updated successfully.');
     }
 
     public function getLatestPurchasePrice(Product $product): JsonResponse

@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Purchase;
 use App\Models\PurchaseLine;
+use App\Models\StockMovement;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,13 +50,6 @@ class StockAdjustmentController extends Controller
             ], 422);
         }
 
-        if ($type === 'decrease' && $quantity > $currentStock) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot decrease more stock than available.',
-            ], 422);
-        }
-
         DB::transaction(function () use ($product, $quantity, $costPrice, $type, $note, $currentStock) {
             if ($type === 'increase') {
                 $purchase = Purchase::create([
@@ -66,7 +60,7 @@ class StockAdjustmentController extends Controller
                     'status' => 'received',
                 ]);
 
-                PurchaseLine::create([
+                $purchaseLine = PurchaseLine::create([
                     'purchase_id' => $purchase->id,
                     'product_id' => $product->id,
                     'quantity' => $quantity,
@@ -78,8 +72,17 @@ class StockAdjustmentController extends Controller
                     ['product_id' => $product->id],
                     []
                 )->increment('current_stock', $quantity);
+
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'type' => StockMovement::TYPE_PURCHASE,
+                    'quantity' => $quantity,
+                    'reference_no' => 'PO-' . $purchase->id,
+                    'created_by' => auth()->id(),
+                    'notes' => $note,
+                ]);
             } else {
-                $this->deductFromFIFO($product->id, $quantity);
+                $this->deductFromFIFO($product->id, $quantity, $note);
             }
         });
 
@@ -92,7 +95,7 @@ class StockAdjustmentController extends Controller
         ]);
     }
 
-    private function deductFromFIFO(int $productId, float $quantity): void
+    private function deductFromFIFO(int $productId, float $quantity, ?string $note = null): void
     {
         $remainingToDeduct = $quantity;
 
@@ -102,6 +105,8 @@ class StockAdjustmentController extends Controller
             ->lockForUpdate()
             ->get();
 
+        $totalDeducted = 0;
+
         foreach ($purchaseLines as $line) {
             if ($remainingToDeduct <= 0) {
                 break;
@@ -110,6 +115,7 @@ class StockAdjustmentController extends Controller
             $deductFromLine = min($line->remaining_qty, $remainingToDeduct);
             $line->decrement('remaining_qty', $deductFromLine);
             $remainingToDeduct -= $deductFromLine;
+            $totalDeducted += $deductFromLine;
         }
 
         if ($remainingToDeduct > 0) {
@@ -117,5 +123,16 @@ class StockAdjustmentController extends Controller
         }
 
         ProductStock::where('product_id', $productId)->decrement('current_stock', $quantity);
+
+        if ($totalDeducted > 0) {
+            StockMovement::create([
+                'product_id' => $productId,
+                'type' => StockMovement::TYPE_SALE,
+                'quantity' => $totalDeducted,
+                'reference_no' => 'ADJ-' . now()->format('YmdHis'),
+                'created_by' => auth()->id(),
+                'notes' => $note,
+            ]);
+        }
     }
 }

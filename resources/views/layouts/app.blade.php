@@ -75,7 +75,7 @@
                     </div>
                 </div>
 
-                <div class="menu-item" x-data="{ open: {{ request()->is('products*') || request()->is('categories*') || request()->is('units*') || request()->is('brands*') || request()->is('stock*') ? 'true' : 'false' }} }">
+                <div class="menu-item" x-data="{ open: {{ request()->is('products*') || request()->is('categories*') || request()->is('units*') || request()->is('brands*') || request()->is('stocks*') ? 'true' : 'false' }} }">
                     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-box w-5"></i>
@@ -100,7 +100,7 @@
                             <i class="fas fa-balance-scale w-4"></i>
                             <span>Units</span>
                         </a>
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('stocks.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('stocks.*') ? 'text-white bg-slate-700' : '' }}">
                             <i class="fas fa-warehouse w-4"></i>
                             <span>Stock Management</span>
                         </a>
