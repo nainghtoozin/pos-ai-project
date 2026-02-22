@@ -38,7 +38,7 @@ class ProductController extends Controller
 
         $query = Product::select('products.*')
             ->selectSub(
-                PurchaseLine::select('cost_price')
+                PurchaseLine::select('purchase_price')
                     ->whereColumn('purchase_lines.product_id', 'products.id')
                     ->orderByDesc('purchase_lines.id')
                     ->limit(1),
@@ -142,8 +142,9 @@ class ProductController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id' => $product->id,
                     'quantity' => $openingStock,
-                    'cost_price' => $purchasePrice,
-                    'remaining_qty' => $openingStock,
+                    'purchase_price' => $purchasePrice,
+                    'selling_price' => $validated['sale_price'],
+                    'line_total' => $openingStock * $purchasePrice,
                 ]);
 
                 ProductStock::updateOrCreate(
@@ -178,7 +179,7 @@ class ProductController extends Controller
         
         $product->latest_purchase_price = PurchaseLine::where('product_id', $product->id)
             ->latest()
-            ->value('cost_price');
+            ->value('purchase_price');
 
         return view('products.edit', $this->formData() + compact('product'));
     }
@@ -261,8 +262,9 @@ class ProductController extends Controller
                 'purchase_id' => $purchase->id,
                 'product_id' => $product->id,
                 'quantity' => $quantity,
-                'cost_price' => $purchasePrice,
-                'remaining_qty' => $effectiveQty,
+                'purchase_price' => $purchasePrice,
+                'selling_price' => $product->sale_price,
+                'line_total' => $quantity * $purchasePrice,
             ]);
 
             $newStock = ($currentStock ?? 0) + $effectiveQty;
@@ -279,13 +281,41 @@ class ProductController extends Controller
     public function getLatestPurchasePrice(Product $product): JsonResponse
     {
         $latestCost = PurchaseLine::where('product_id', $product->id)
-            ->where('remaining_qty', '>', 0)
             ->orderBy('id', 'desc')
-            ->value('cost_price');
+            ->value('purchase_price');
 
         return response()->json([
             'purchase_price' => $latestCost ?? 0,
         ]);
+    }
+
+    public function liveSearch(Request $request): JsonResponse
+    {
+        $keyword = $request->get('q', '');
+        
+        if (strlen($keyword) < 2) {
+            return response()->json([]);
+        }
+
+        $products = Product::where(function ($query) use ($keyword) {
+                $query->where('name', 'like', "%{$keyword}%")
+                    ->orWhere('sku', 'like', "%{$keyword}%")
+                    ->orWhere('barcode', 'like', "%{$keyword}%");
+            })
+            ->leftJoin('product_stocks', 'products.id', '=', 'product_stocks.product_id')
+            ->select([
+                'products.id',
+                'products.name',
+                'products.sku',
+                'products.barcode',
+                'products.purchase_price',
+                'products.sale_price',
+                DB::raw('COALESCE(product_stocks.current_stock, 0) as current_stock')
+            ])
+            ->limit(10)
+            ->get();
+
+        return response()->json($products);
     }
 
     private function generateUniqueSku(?int $excludeProductId = null): string

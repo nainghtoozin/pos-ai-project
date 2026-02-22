@@ -135,7 +135,7 @@
                     </div>
                 </div>
 
-                <div class="menu-item" x-data="{ open: false }">
+                <div class="menu-item" x-data="{ open: {{ request()->is('purchases*') || request()->is('suppliers*') ? 'true' : 'false' }} }">
                     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-shopping-bag w-5"></i>
@@ -144,17 +144,13 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('purchases.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('purchases.index') || request()->routeIs('purchases.create') || request()->routeIs('purchases.edit') || request()->routeIs('purchases.show') ? 'text-white bg-slate-700' : '' }}">
                             <i class="fas fa-cart-plus w-4"></i>
                             <span>Purchases</span>
                         </a>
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('suppliers.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('suppliers.*') ? 'text-white bg-slate-700' : '' }}">
                             <i class="fas fa-truck w-4"></i>
                             <span>Suppliers</span>
-                        </a>
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
-                            <i class="fas fa-undo-alt w-4"></i>
-                            <span>Purchase Returns</span>
                         </a>
                     </div>
                 </div>
@@ -179,7 +175,7 @@
                     </div>
                 </div>
 
-                <div class="menu-item" x-data="{ open: false }">
+                <div class="menu-item" x-data="{ open: {{ request()->is('payment_methods*') ? 'true' : 'false' }} }">
                     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-wallet w-5"></i>
@@ -188,6 +184,10 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
+                        <a href="{{ route('payment_methods.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('payment_methods.*') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-credit-card w-4"></i>
+                            <span>Payment Methods</span>
+                        </a>
                         <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
                             <i class="fas fa-receipt w-4"></i>
                             <span>Expenses</span>
@@ -357,7 +357,7 @@
                     </div>
                 </div>
 
-                <div class="menu-item" x-data="{ open: false }">
+                <div class="menu-item" x-data="{ open: {{ request()->is('purchases*') || request()->is('suppliers*') ? 'true' : 'false' }} }">
                     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-shopping-bag w-5"></i>
@@ -366,9 +366,13 @@
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('purchases.index') }}" @click="closeSidebar()" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('purchases.index') || request()->routeIs('purchases.create') || request()->routeIs('purchases.edit') || request()->routeIs('purchases.show') ? 'text-white bg-slate-700' : '' }}">
                             <i class="fas fa-cart-plus w-4"></i>
                             <span>Purchases</span>
+                        </a>
+                        <a href="{{ route('suppliers.index') }}" @click="closeSidebar()" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('suppliers.*') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-truck w-4"></i>
+                            <span>Suppliers</span>
                         </a>
                     </div>
                 </div>
@@ -389,18 +393,30 @@
                     </div>
                 </div>
 
-                <div class="menu-item" x-data="{ open: false }">
+                <div class="menu-item" x-data="{ open: {{ request()->is('payment_methods*') ? 'true' : 'false' }} }">
                     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
                         <div class="flex items-center gap-3">
-                            <i class="fas fa-chart-bar w-5"></i>
-                            <span>Reports</span>
+                            <i class="fas fa-wallet w-5"></i>
+                            <span>Accounts & Finance</span>
                         </div>
                         <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-collapse class="pl-4 mt-1">
+                        <a href="{{ route('payment_methods.index') }}" @click="closeSidebar()" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('payment_methods.*') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-credit-card w-4"></i>
+                            <span>Payment Methods</span>
+                        </a>
                         <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
-                            <i class="fas fa-calendar-day w-4"></i>
-                            <span>Daily Report</span>
+                            <i class="fas fa-receipt w-4"></i>
+                            <span>Expenses</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                            <i class="fas fa-hand-holding-usd w-4"></i>
+                            <span>Income</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                            <i class="fas fa-chart-pie w-4"></i>
+                            <span>Reports</span>
                         </a>
                     </div>
                 </div>

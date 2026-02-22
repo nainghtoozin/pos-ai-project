@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
@@ -15,6 +18,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Public product search for purchase
+Route::get('/products/live-search', [App\Http\Controllers\ProductController::class, 'liveSearch'])->name('products.liveSearch');
+Route::get('/purchases/search-products', [App\Http\Controllers\PurchaseController::class, 'searchProducts'])->name('purchases.searchProducts');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -47,11 +54,13 @@ Route::middleware('auth')->group(function () {
     Route::get('products/{product}/latest-purchase-price', [ProductController::class, 'getLatestPurchasePrice'])
         ->name('products.latestPurchasePrice');
 
-    // Stock Adjustment routes
-    Route::post('stock-adjustment/{product}', [StockAdjustmentController::class, 'adjust'])
-        ->name('stock-adjustment.adjust');
-    Route::get('stock-adjustment/{product}/latest-price', [StockAdjustmentController::class, 'getLatestPurchasePrice'])
-        ->name('stock-adjustment.latestPrice');
+    // Purchase Management routes
+    Route::resource('purchases', PurchaseController::class);
+    Route::get('purchases/{product}/get-product', [PurchaseController::class, 'getProduct'])->name('purchases.getProduct');
+
+    // Supplier Management routes
+    Route::resource('suppliers', SupplierController::class);
+    Route::get('suppliers/search', [SupplierController::class, 'search'])->name('suppliers.search');
 
     // Stock Management routes
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
@@ -59,6 +68,9 @@ Route::middleware('auth')->group(function () {
 
     // Tax management routes
     Route::resource('taxes', TaxController::class);
+
+    // Payment Method management routes
+    Route::resource('payment_methods', PaymentMethodController::class)->only(['index', 'store', 'edit', 'update', 'destroy']);
 });
 
 require __DIR__ . '/auth.php';

@@ -73,6 +73,12 @@ class PermissionSeeder extends Seeder
             'tax.edit',
             'tax.delete',
 
+            // Payment Method
+            'payment_method.view',
+            'payment_method.create',
+            'payment_method.edit',
+            'payment_method.delete',
+
             // Report
             'report.view',
 

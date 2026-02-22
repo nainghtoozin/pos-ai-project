@@ -16,9 +16,8 @@ class StockAdjustmentController extends Controller
     public function getLatestPurchasePrice(int $productId): JsonResponse
     {
         $latestCost = PurchaseLine::where('product_id', $productId)
-            ->where('remaining_qty', '>', 0)
             ->orderBy('id', 'desc')
-            ->value('cost_price');
+            ->value('purchase_price');
 
         return response()->json([
             'purchase_price' => $latestCost ?? 0,
@@ -31,13 +30,13 @@ class StockAdjustmentController extends Controller
 
         $validated = $request->validate([
             'quantity' => ['required', 'numeric', 'min:0.01'],
-            'cost_price' => ['required', 'numeric', 'min:0'],
+            'purchase_price' => ['required', 'numeric', 'min:0'],
             'type' => ['required', 'in:increase,decrease'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
         $quantity = (float) $validated['quantity'];
-        $costPrice = (float) $validated['cost_price'];
+        $purchasePrice = (float) $validated['purchase_price'];
         $type = $validated['type'];
         $note = $validated['note'] ?? null;
 
@@ -50,12 +49,11 @@ class StockAdjustmentController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($product, $quantity, $costPrice, $type, $note, $currentStock) {
+        DB::transaction(function () use ($product, $quantity, $purchasePrice, $type, $note, $currentStock) {
             if ($type === 'increase') {
                 $purchase = Purchase::create([
                     'supplier_id' => null,
-                    'purchase_date' => now()->toDateString(),
-                    'total_amount' => $quantity * $costPrice,
+                    'total_amount' => $quantity * $purchasePrice,
                     'notes' => 'Stock increase: ' . $product->name . ($note ? " - {$note}" : ''),
                     'status' => 'received',
                 ]);
@@ -64,8 +62,9 @@ class StockAdjustmentController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id' => $product->id,
                     'quantity' => $quantity,
-                    'cost_price' => $costPrice,
-                    'remaining_qty' => $quantity,
+                    'purchase_price' => $purchasePrice,
+                    'selling_price' => $product->sale_price,
+                    'line_total' => $quantity * $purchasePrice,
                 ]);
 
                 ProductStock::updateOrCreate(

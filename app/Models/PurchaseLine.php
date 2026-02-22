@@ -14,14 +14,18 @@ class PurchaseLine extends Model
         'purchase_id',
         'product_id',
         'quantity',
-        'cost_price',
-        'remaining_qty',
+        'purchase_price',
+        'selling_price',
+        'discount_amount',
+        'line_total',
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:4',
-        'cost_price' => 'decimal:4',
-        'remaining_qty' => 'decimal:4',
+        'quantity' => 'decimal:2',
+        'purchase_price' => 'decimal:2',
+        'selling_price' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'line_total' => 'decimal:2',
     ];
 
     public function purchase(): BelongsTo
@@ -32,5 +36,16 @@ class PurchaseLine extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($line) {
+            if (is_null($line->line_total)) {
+                $line->line_total = ($line->quantity * $line->purchase_price) - ($line->discount_amount ?? 0);
+            }
+        });
     }
 }
