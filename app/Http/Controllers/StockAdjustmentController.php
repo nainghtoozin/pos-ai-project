@@ -2,136 +2,83 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\StockAdjustment;
 use App\Models\Product;
-use App\Models\ProductStock;
-use App\Models\Purchase;
-use App\Models\PurchaseLine;
-use App\Models\StockMovement;
-use Illuminate\Http\JsonResponse;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Http\Requests\StoreStockAdjustmentRequest;
 
 class StockAdjustmentController extends Controller
 {
-    public function getLatestPurchasePrice(int $productId): JsonResponse
+    public function __construct(
+        private InventoryService $inventoryService
+    ) {}
+
+    public function index(Request $request)
     {
-        $latestCost = PurchaseLine::where('product_id', $productId)
+        $search = $request->get('search');
+        $type = $request->get('type');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $adjustments = StockAdjustment::with(['creator', 'items.product'])
+            ->when($search, fn($q, $v) => $q->where('reference_no', 'like', "%{$v}%"))
+            ->when($type, fn($q, $v) => $q->where('type', $v))
+            ->when($dateFrom, fn($q, $v) => $q->whereDate('adjustment_date', '>=', $v))
+            ->when($dateTo, fn($q, $v) => $q->whereDate('adjustment_date', '<=', $v))
+            ->orderBy('adjustment_date', 'desc')
             ->orderBy('id', 'desc')
-            ->value('purchase_price');
+            ->paginate(15)
+            ->withQueryString();
 
-        return response()->json([
-            'purchase_price' => $latestCost ?? 0,
-        ]);
+        return view('stock_adjustments.index', compact('adjustments', 'search', 'type', 'dateFrom', 'dateTo'));
     }
 
-    public function adjust(Request $request, Product $product): JsonResponse
+    public function create()
     {
-        abort_unless(auth()->user()->can('product.edit'), 403);
+        $products = Product::orderBy('name')->get();
+        $reasons = \App\Models\StockAdjustmentItem::REASONS;
+        $referenceNo = StockAdjustment::generateReferenceNo();
 
-        $validated = $request->validate([
-            'quantity' => ['required', 'numeric', 'min:0.01'],
-            'purchase_price' => ['required', 'numeric', 'min:0'],
-            'type' => ['required', 'in:increase,decrease'],
-            'note' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        $quantity = (float) $validated['quantity'];
-        $purchasePrice = (float) $validated['purchase_price'];
-        $type = $validated['type'];
-        $note = $validated['note'] ?? null;
-
-        $currentStock = ProductStock::where('product_id', $product->id)->value('current_stock') ?? 0;
-
-        if ($type === 'decrease' && $quantity > $currentStock) {
-            return response()->json([
-                'success' => false,
-                'message' => "Insufficient stock. Available: {$currentStock}",
-            ], 422);
-        }
-
-        DB::transaction(function () use ($product, $quantity, $purchasePrice, $type, $note, $currentStock) {
-            if ($type === 'increase') {
-                $purchase = Purchase::create([
-                    'supplier_id' => null,
-                    'total_amount' => $quantity * $purchasePrice,
-                    'notes' => 'Stock increase: ' . $product->name . ($note ? " - {$note}" : ''),
-                    'status' => 'received',
-                ]);
-
-                $purchaseLine = PurchaseLine::create([
-                    'purchase_id' => $purchase->id,
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'purchase_price' => $purchasePrice,
-                    'selling_price' => $product->sale_price,
-                    'line_total' => $quantity * $purchasePrice,
-                ]);
-
-                ProductStock::updateOrCreate(
-                    ['product_id' => $product->id],
-                    []
-                )->increment('current_stock', $quantity);
-
-                StockMovement::create([
-                    'product_id' => $product->id,
-                    'type' => StockMovement::TYPE_PURCHASE,
-                    'quantity' => $quantity,
-                    'reference_no' => 'PO-' . $purchase->id,
-                    'created_by' => auth()->id(),
-                    'notes' => $note,
-                ]);
-            } else {
-                $this->deductFromFIFO($product->id, $quantity, $note);
-            }
-        });
-
-        $newStock = ProductStock::where('product_id', $product->id)->value('current_stock') ?? 0;
-
-        return response()->json([
-            'success' => true,
-            'message' => $type === 'increase' ? 'Stock increased successfully.' : 'Stock decreased successfully.',
-            'new_stock' => $newStock,
-        ]);
+        return view('stock_adjustments.create', compact('products', 'reasons', 'referenceNo'));
     }
 
-    private function deductFromFIFO(int $productId, float $quantity, ?string $note = null): void
+    public function store(StoreStockAdjustmentRequest $request)
     {
-        $remainingToDeduct = $quantity;
+        try {
+            $adjustment = $this->inventoryService->handleAdjustment($request->validated());
 
-        $purchaseLines = PurchaseLine::where('product_id', $productId)
-            ->where('remaining_qty', '>', 0)
-            ->orderBy('created_at', 'asc')
-            ->lockForUpdate()
-            ->get();
-
-        $totalDeducted = 0;
-
-        foreach ($purchaseLines as $line) {
-            if ($remainingToDeduct <= 0) {
-                break;
-            }
-
-            $deductFromLine = min($line->remaining_qty, $remainingToDeduct);
-            $line->decrement('remaining_qty', $deductFromLine);
-            $remainingToDeduct -= $deductFromLine;
-            $totalDeducted += $deductFromLine;
+            return redirect()
+                ->route('stock_adjustments.index')
+                ->with('success', 'Stock adjustment created successfully!');
+        } catch (\Exception $e) {
+            return back()
+                ->with('error', 'Error: ' . $e->getMessage())
+                ->withInput();
         }
+    }
 
-        if ($remainingToDeduct > 0) {
-            throw new \RuntimeException("FIFO calculation error: insufficient purchase lines");
-        }
+    public function show(StockAdjustment $stockAdjustment)
+    {
+        $stockAdjustment->load(['creator', 'items.product']);
 
-        ProductStock::where('product_id', $productId)->decrement('current_stock', $quantity);
+        return view('stock_adjustments.show', compact('stockAdjustment'));
+    }
 
-        if ($totalDeducted > 0) {
-            StockMovement::create([
-                'product_id' => $productId,
-                'type' => StockMovement::TYPE_SALE,
-                'quantity' => $totalDeducted,
-                'reference_no' => 'ADJ-' . now()->format('YmdHis'),
-                'created_by' => auth()->id(),
-                'notes' => $note,
-            ]);
-        }
+    public function getProductStock(Request $request)
+    {
+        $productId = $request->get('product_id');
+        
+        $currentStock = $this->inventoryService->getCurrentStock($productId);
+        $averageCost = $this->inventoryService->getAverageCost($productId);
+        
+        $product = Product::find($productId);
+
+        return response()->json([
+            'current_stock' => $currentStock,
+            'average_cost' => $averageCost,
+            'product_name' => $product?->name,
+        ]);
     }
 }

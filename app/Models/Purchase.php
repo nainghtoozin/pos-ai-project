@@ -12,7 +12,9 @@ class Purchase extends Model
     use HasFactory;
 
     protected $fillable = [
+        'invoice_no',
         'supplier_id',
+        'payment_method_id',
         'status',
         'discount_type',
         'discount_amount',
@@ -23,19 +25,38 @@ class Purchase extends Model
         'paid_amount',
         'due_amount',
         'payment_status',
-        'payment_method',
         'notes',
         'created_by',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($purchase) {
+            if (empty($purchase->invoice_no)) {
+                $purchase->invoice_no = self::generateInvoiceNo();
+            }
+        });
+    }
+
+    public static function generateInvoiceNo(): string
+    {
+        $prefix = 'PO-';
+        $lastPurchase = self::orderBy('id', 'desc')->first();
+        $nextNumber = $lastPurchase ? ((int) str_replace($prefix, '', $lastPurchase->invoice_no)) + 1 : 1;
+        
+        return $prefix . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+    }
+
     protected $casts = [
-        'total_amount' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
-        'due_amount' => 'decimal:2',
-        'discount_amount' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'shipping_charges' => 'decimal:2',
-        'other_charges' => 'decimal:2',
+        'total_amount' => 'integer',
+        'paid_amount' => 'integer',
+        'due_amount' => 'integer',
+        'discount_amount' => 'integer',
+        'tax_amount' => 'integer',
+        'shipping_charges' => 'integer',
+        'other_charges' => 'integer',
     ];
 
     public const STATUS_ORDERED = 'ordered';
@@ -73,9 +94,24 @@ class Purchase extends Model
         return $this->belongsTo(Supplier::class);
     }
 
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
     public function lines(): HasMany
     {
         return $this->hasMany(PurchaseLine::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(PurchasePayment::class);
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class);
     }
 
     public function creator(): BelongsTo

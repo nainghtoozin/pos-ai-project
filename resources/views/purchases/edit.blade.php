@@ -271,11 +271,19 @@
                         class="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
                 </div>
                 <div>
-                    <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                    <input type="text" name="payment_method" id="payment_method" 
-                        value="{{ old('payment_method', $purchase->payment_method ?? '') }}"
-                        placeholder="e.g., Cash, Bank Transfer, Cheque"
+                    <label for="payment_method_id" class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                    <select name="payment_method_id" id="payment_method_id" 
                         class="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                @php
+                    $selectedPaymentMethod = old('payment_method_id', $purchase->payment_method_id ?? ($defaultPaymentMethod->id ?? ''));
+                @endphp
+                <option value="">Select Payment Method</option>
+                @foreach($paymentMethods as $method)
+                    <option value="{{ $method->id }}" {{ $selectedPaymentMethod == $method->id ? 'selected' : '' }}>
+                        {{ $method->name }}
+                    </option>
+                @endforeach
+                    </select>
                 </div>
             </div>
         </div>

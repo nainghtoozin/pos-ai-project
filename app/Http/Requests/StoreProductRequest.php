@@ -45,7 +45,6 @@ class StoreProductRequest extends FormRequest
             'is_active' => ['sometimes', 'boolean'],
             'has_barcode' => ['sometimes', 'boolean'],
             'sale_price' => ['required', 'numeric', 'min:0', 'decimal:0,4'],
-            'purchase_price' => ['nullable', 'numeric', 'min:0', 'decimal:0,4'],
             'opening_stock' => ['nullable', 'integer', 'min:0'],
         ];
     }

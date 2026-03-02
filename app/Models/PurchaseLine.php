@@ -18,14 +18,16 @@ class PurchaseLine extends Model
         'selling_price',
         'discount_amount',
         'line_total',
+        'remaining_qty',
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:2',
-        'purchase_price' => 'decimal:2',
-        'selling_price' => 'decimal:2',
-        'discount_amount' => 'decimal:2',
-        'line_total' => 'decimal:2',
+        'quantity' => 'integer',
+        'purchase_price' => 'integer',
+        'selling_price' => 'integer',
+        'discount_amount' => 'integer',
+        'line_total' => 'integer',
+        'remaining_qty' => 'integer',
     ];
 
     public function purchase(): BelongsTo
@@ -45,6 +47,9 @@ class PurchaseLine extends Model
         static::creating(function ($line) {
             if (is_null($line->line_total)) {
                 $line->line_total = ($line->quantity * $line->purchase_price) - ($line->discount_amount ?? 0);
+            }
+            if (is_null($line->remaining_qty)) {
+                $line->remaining_qty = $line->quantity;
             }
         });
     }

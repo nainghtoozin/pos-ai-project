@@ -115,14 +115,16 @@ class StockController extends Controller
             ->get();
 
         $purchaseLines = PurchaseLine::where('product_id', $productId)
+            ->with('purchase:id,invoice_no')
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($line) {
                 return (object) [
                     'id' => 'pl-' . $line->id,
                     'type' => 'purchase',
+                    'source_type' => 'purchase',
                     'type_label' => 'Purchase',
-                    'reference_no' => $line->purchase_id ? 'PO-' . $line->purchase_id : null,
+                    'reference_no' => $line->purchase?->invoice_no ?? 'PO-' . $line->purchase_id,
                     'quantity' => $line->quantity,
                     'created_at' => $line->created_at,
                     'creator' => null,

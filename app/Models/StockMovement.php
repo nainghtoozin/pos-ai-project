@@ -13,6 +13,7 @@ class StockMovement extends Model
     protected $fillable = [
         'product_id',
         'type',
+        'source_type',
         'quantity',
         'reference_no',
         'created_by',
@@ -20,7 +21,7 @@ class StockMovement extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:4',
+        'quantity' => 'integer',
     ];
 
     public const TYPE_OPENING = 'opening';
@@ -97,6 +98,38 @@ class StockMovement extends Model
             self::TYPE_SALE, self::TYPE_PURCHASE_RETURN, 
             self::TYPE_TRANSFER_OUT, self::TYPE_ADJUSTMENT_OUT => 'rose',
             default => 'gray',
+        };
+    }
+
+    public function getSourceTypeLabelAttribute(): string
+    {
+        return self::getSourceTypeLabel($this->source_type ?? $this->type);
+    }
+
+    public function getSourceTypeColorAttribute(): string
+    {
+        return self::getSourceTypeColor($this->source_type ?? $this->type);
+    }
+
+    public static function getSourceTypeLabel(string $type): string
+    {
+        return match ($type) {
+            'opening_stock' => 'Opening Stock',
+            'purchase' => 'Purchase',
+            'sale' => 'Sale',
+            'adjustment' => 'Adjustment',
+            default => self::getTypeLabel($type),
+        };
+    }
+
+    public static function getSourceTypeColor(string $type): string
+    {
+        return match ($type) {
+            'opening_stock' => 'blue',
+            'purchase' => 'green',
+            'sale' => 'red',
+            'adjustment' => 'yellow',
+            default => self::getTypeColor($type),
         };
     }
 }

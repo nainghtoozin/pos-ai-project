@@ -13,10 +13,7 @@
         body { font-family: 'Figtree', sans-serif; }
         .sidebar { transition: transform 0.3s ease; }
         .sidebar::-webkit-scrollbar { width: 6px; }
-        .sidebar::-webkit-scrollbar-track { background: #1e293b; }
-        .sidebar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-        .submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-        .submenu.active { max-height: 500px; }
+        [x-cloak] { display: none !important; }
     </style>
     @yield('styles')
 </head>
@@ -100,9 +97,29 @@
                             <i class="fas fa-balance-scale w-4"></i>
                             <span>Units</span>
                         </a>
+                    </div>
+                </div>
+
+                <div class="menu-item" x-data="{ open: {{ request()->is('stock*') || request()->is('stocks*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-warehouse w-5"></i>
+                            <span>Inventory</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-collapse class="pl-4 mt-1">
                         <a href="{{ route('stocks.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('stocks.*') ? 'text-white bg-slate-700' : '' }}">
-                            <i class="fas fa-warehouse w-4"></i>
-                            <span>Stock Management</span>
+                            <i class="fas fa-boxes w-4"></i>
+                            <span>Stock Summary</span>
+                        </a>
+                        <a href="{{ route('stock_adjustments.create') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('stock_adjustments.create') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-plus-circle w-4"></i>
+                            <span>Add Adjustment</span>
+                        </a>
+                        <a href="{{ route('stock_adjustments.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('stock_adjustments.index') || request()->routeIs('stock_adjustments.show') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-sliders-h w-4"></i>
+                            <span>Adjustments List</span>
                         </a>
                     </div>
                 </div>
@@ -447,7 +464,7 @@
         <div class="flex-1 flex flex-col lg:ml-72 min-h-screen">
             <!-- Navbar -->
             <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-                <div class="flex items-center justify-between px-4 lg:px-8 py-4">
+                <div class="flex items-center justify-between px-4 lg:px-6 py-3">
                     <div class="flex items-center gap-4">
                         <button @click="toggleSidebar()" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-bars text-gray-600 text-lg"></i>
@@ -489,7 +506,7 @@
             </header>
 
             <!-- Page Content -->
-            <main class="flex-1 p-4 lg:p-8">
+            <main class="flex-1 p-4 lg:p-6">
                 @yield('content')
             </main>
         </div>
@@ -507,6 +524,44 @@
                 }
             }
         }
+    </script>
+    
+    <!-- Image Preview Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageInput = document.getElementById('image');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const previewImage = document.getElementById('imagePreview');
+            const removeBtn = document.getElementById('removeImageBtn');
+            
+            if (imageInput) {
+                imageInput.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    
+                    if (file) {
+                        const reader = new FileReader();
+                        
+                        reader.onload = function(e) {
+                            previewImage.src = e.target.result;
+                            previewContainer.classList.remove('hidden');
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    } else {
+                        previewContainer.classList.add('hidden');
+                        previewImage.src = '';
+                    }
+                });
+            }
+            
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function() {
+                    imageInput.value = '';
+                    previewContainer.classList.add('hidden');
+                    previewImage.src = '';
+                });
+            }
+        });
     </script>
     @yield('scripts')
 </body>

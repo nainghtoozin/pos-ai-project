@@ -19,7 +19,7 @@ class ProductStock extends Model
     ];
 
     protected $casts = [
-        'current_stock' => 'decimal:4',
+        'current_stock' => 'integer',
     ];
 
     public function product(): BelongsTo

@@ -28,7 +28,7 @@ class UpdatePurchaseRequest extends FormRequest
             'shipping_charges' => 'nullable|numeric|min:0',
             'other_charges' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string|max:255',
+            'payment_method_id' => 'nullable|exists:payment_methods,id',
             'notes' => 'nullable|string',
         ];
     }

@@ -25,11 +25,11 @@ class Sale extends Model
 
     protected $casts = [
         'sale_date' => 'date',
-        'total_amount' => 'decimal:4',
-        'total_cost' => 'decimal:4',
-        'total_profit' => 'decimal:4',
-        'paid_amount' => 'decimal:4',
-        'due_amount' => 'decimal:4',
+        'total_amount' => 'integer',
+        'total_cost' => 'integer',
+        'total_profit' => 'integer',
+        'paid_amount' => 'integer',
+        'due_amount' => 'integer',
     ];
 
     public function customer(): BelongsTo

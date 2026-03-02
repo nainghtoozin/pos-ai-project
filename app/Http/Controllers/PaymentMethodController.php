@@ -37,6 +37,10 @@ class PaymentMethodController extends Controller
     {
         abort_unless(auth()->user()->can('payment_method.edit'), 403);
 
+        if ($paymentMethod->is_system) {
+            return back()->with('error', 'Cannot update system payment method.');
+        }
+
         $paymentMethod->update($request->validated());
 
         return redirect()->route('payment_methods.index')->with('success', 'Payment method updated successfully.');
@@ -45,6 +49,10 @@ class PaymentMethodController extends Controller
     public function destroy(PaymentMethod $paymentMethod)
     {
         abort_unless(auth()->user()->can('payment_method.delete'), 403);
+
+        if ($paymentMethod->is_system) {
+            return back()->with('error', 'Cannot delete system payment method.');
+        }
 
         $paymentMethod->delete();
 

@@ -25,8 +25,8 @@ class Supplier extends Model
     ];
 
     protected $casts = [
-        'opening_balance' => 'decimal:2',
-        'advance_balance' => 'decimal:2',
+        'opening_balance' => 'integer',
+        'advance_balance' => 'integer',
     ];
 
     protected static function boot()

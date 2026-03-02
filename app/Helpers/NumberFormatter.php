@@ -4,33 +4,26 @@ namespace App\Helpers;
 
 class NumberFormatter
 {
-    public static function format($value, $decimals = 2): string
+    public static function format($value, $decimals = 0): string
     {
         if ($value === null || $value === '') {
             return '-';
         }
 
-        $value = (float) $value;
-
-        if ($value == floor($value)) {
-            return number_format($value, 0);
-        }
-
-        return rtrim(number_format($value, $decimals), '0');
+        return number_format((int) $value, 0);
     }
 
-    public static function formatCurrency($value, $symbol = '$'): string
+    public static function formatCurrency($value, $symbol = 'K '): string
     {
         if ($value === null || $value === '') {
             return $symbol . '-';
         }
 
-        $formatted = self::format($value);
-        return $formatted === '-' ? $symbol . '-' : $symbol . $formatted;
+        return $symbol . number_format((int) $value);
     }
 
     public static function formatStock($value): string
     {
-        return self::format($value, 2);
+        return self::format($value);
     }
 }

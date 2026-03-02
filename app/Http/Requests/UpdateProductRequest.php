@@ -32,6 +32,7 @@ class UpdateProductRequest extends FormRequest
             'tax_id' => ['nullable', 'exists:taxes,id'],
             'description' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:2048'],
+            'remove_image' => ['nullable', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'has_barcode' => ['sometimes', 'boolean'],
             'sale_price' => ['required', 'numeric', 'min:0', 'decimal:0,4'],

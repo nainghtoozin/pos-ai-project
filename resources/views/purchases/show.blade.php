@@ -106,7 +106,7 @@
                             </div>
                             <div>
                                 <span class="text-sm text-gray-500">Payment Method</span>
-                                <p class="text-gray-800 font-medium">{{ $purchase->payment_method ?? 'N/A' }}</p>
+                                <p class="text-gray-800 font-medium">{{ $purchase->paymentMethod?->name ?? 'N/A' }}</p>
                             </div>
                         </div>
                     </div>

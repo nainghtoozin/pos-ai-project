@@ -57,6 +57,10 @@ Route::middleware('auth')->group(function () {
     // Purchase Management routes
     Route::resource('purchases', PurchaseController::class);
     Route::get('purchases/{product}/get-product', [PurchaseController::class, 'getProduct'])->name('purchases.getProduct');
+    Route::get('purchases/{purchase}/print', [PurchaseController::class, 'print'])->name('purchases.print');
+    Route::post('purchases/{purchase}/payment', [PurchaseController::class, 'addPayment'])->name('purchases.payment');
+    Route::get('purchases/{purchase}/return', [PurchaseController::class, 'createReturn'])->name('purchases.return');
+    Route::post('purchases/{purchase}/return', [PurchaseController::class, 'storeReturn'])->name('purchases.storeReturn');
 
     // Supplier Management routes
     Route::resource('suppliers', SupplierController::class);
@@ -65,6 +69,10 @@ Route::middleware('auth')->group(function () {
     // Stock Management routes
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
     Route::get('stocks/{product}', [StockController::class, 'show'])->name('stocks.show');
+
+    // Stock Adjustment routes - custom route must come BEFORE resource
+    Route::get('stock_adjustments/{product}/get-stock', [StockAdjustmentController::class, 'getProductStock'])->name('stock_adjustments.getStock');
+    Route::resource('stock_adjustments', StockAdjustmentController::class);
 
     // Tax management routes
     Route::resource('taxes', TaxController::class);

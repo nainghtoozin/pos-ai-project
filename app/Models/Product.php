@@ -26,15 +26,15 @@ class Product extends Model
         'image',
         'is_active',
         'sale_price',
-        'purchase_price',
         'wholesale_price',
+        'stock',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'sale_price' => 'decimal:4',
-        'purchase_price' => 'decimal:4',
-        'wholesale_price' => 'decimal:4',
+        'sale_price' => 'integer',
+        'wholesale_price' => 'integer',
+        'stock' => 'integer',
     ];
 
     protected $appends = [
@@ -86,6 +86,20 @@ class Product extends Model
         return $this->hasOne(PurchaseLine::class)->latestOfMany();
     }
 
+    public function getLastPurchasePrice(): ?float
+    {
+        $lastPurchaseLine = $this->purchaseLines()
+            ->join('purchases', 'purchase_lines.purchase_id', '=', 'purchases.id')
+            ->orderBy('purchases.created_at', 'desc')
+            ->first();
+
+        if ($lastPurchaseLine) {
+            return (float) $lastPurchaseLine->purchase_price;
+        }
+
+        return 0;
+    }
+
     public function scopeSingle($query)
     {
         return $query->where('product_type', 'single');
@@ -101,6 +115,6 @@ class Product extends Model
             return $this->image;
         }
 
-        return Storage::disk('public')->url($this->image);
+        return asset('storage/' . $this->image);
     }
 }

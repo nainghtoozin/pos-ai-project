@@ -20,10 +20,10 @@ class SaleItem extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:4',
-        'sale_price' => 'decimal:4',
-        'cost_price' => 'decimal:4',
-        'profit' => 'decimal:4',
+        'quantity' => 'integer',
+        'sale_price' => 'integer',
+        'cost_price' => 'integer',
+        'profit' => 'integer',
     ];
 
     public function sale(): BelongsTo

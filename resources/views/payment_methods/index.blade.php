@@ -39,6 +39,15 @@
                 </div>
             @endif
 
+            @if(session('error'))
+                <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="flex items-center gap-2 text-red-700">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span class="font-medium">{{ session('error') }}</span>
+                    </div>
+                </div>
+            @endif
+
             <form method="GET" action="{{ route('payment_methods.index') }}" class="flex flex-col sm:flex-row gap-4">
                 <div class="relative flex-1">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -102,7 +111,15 @@
                             <span class="text-sm text-gray-600">{{ $method->account_number ?? '-' }}</span>
                         </td>
                         <td class="px-6 py-4">
-                            @if($method->is_active)
+                            @if($method->is_default)
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
+                                    <i class="fas fa-star"></i>System Default
+                                </span>
+                            @elseif($method->is_system)
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                    <i class="fas fa-cog"></i>System
+                                </span>
+                            @elseif($method->is_active)
                                 <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                     <i class="fas fa-check-circle"></i>Active
                                 </span>
@@ -114,6 +131,7 @@
                         </td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-2">
+                                @if(!$method->is_system)
                                 @can('payment_method.edit')
                                 <button @click="editModal({{ json_encode(['id' => $method->id, 'name' => $method->name, 'type' => $method->type, 'account_name' => $method->account_name, 'account_number' => $method->account_number, 'is_active' => $method->is_active]) }})" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -124,6 +142,9 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 @endcan
+                                @else
+                                <span class="text-xs text-gray-400 italic">System</span>
+                                @endif
                             </div>
                         </td>
                     </tr>

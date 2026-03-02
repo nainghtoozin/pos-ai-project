@@ -28,6 +28,7 @@ class PurchaseService
 
             $purchase = Purchase::create([
                 'supplier_id' => $data['supplier_id'] ?? null,
+                'payment_method_id' => $data['payment_method_id'] ?? null,
                 'status' => $data['status'],
                 'discount_type' => $data['discount_type'] ?? 'none',
                 'discount_amount' => $discountAmount,
@@ -38,7 +39,6 @@ class PurchaseService
                 'paid_amount' => $paidAmount,
                 'due_amount' => $dueAmount,
                 'payment_status' => $paymentStatus,
-                'payment_method' => $data['payment_method'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => auth()->id(),
             ]);
@@ -73,6 +73,7 @@ class PurchaseService
 
             $purchase->update([
                 'supplier_id' => $data['supplier_id'] ?? null,
+                'payment_method_id' => $data['payment_method_id'] ?? null,
                 'status' => $newStatus,
                 'discount_type' => $data['discount_type'] ?? 'none',
                 'discount_amount' => $discountAmount,
@@ -83,7 +84,6 @@ class PurchaseService
                 'paid_amount' => $paidAmount,
                 'due_amount' => $dueAmount,
                 'payment_status' => $paymentStatus,
-                'payment_method' => $data['payment_method'] ?? null,
                 'notes' => $data['notes'] ?? null,
             ]);
 

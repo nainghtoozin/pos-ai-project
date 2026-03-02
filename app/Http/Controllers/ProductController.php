@@ -100,8 +100,8 @@ class ProductController extends Controller
 
         $validated = $request->validated();
         
-        $openingStock = $validated['opening_stock'] ?? 0;
-        $purchasePrice = $validated['purchase_price'] ?? null;
+        $openingStock = isset($validated['opening_stock']) ? (int) $validated['opening_stock'] : 0;
+        $purchasePrice = isset($validated['purchase_price']) ? (int) $validated['purchase_price'] : 0;
 
         DB::transaction(function () use ($validated, $request, $openingStock, $purchasePrice) {
             $sku = $validated['sku'] ?? null;
@@ -115,11 +115,12 @@ class ProductController extends Controller
                 'sku' => $sku,
                 'product_type' => 'single',
                 'category_id' => $validated['category_id'],
-                'brand_id' => $validated['brand_id'],
-                'unit_id' => $validated['unit_id'],
+                'brand_id' => $validated['brand_id'] ?? null,
+                'unit_id' => $validated['unit_id'] ?? null,
                 'tax_id' => $validated['tax_id'] ?? null,
                 'description' => $validated['description'] ?? null,
-                'sale_price' => $validated['sale_price'],
+                'sale_price' => (int) $validated['sale_price'],
+                'wholesale_price' => isset($validated['wholesale_price']) ? (int) $validated['wholesale_price'] : null,
                 'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
             ];
 
@@ -129,7 +130,7 @@ class ProductController extends Controller
 
             $product = Product::create($productData);
 
-            if ($openingStock > 0 && $purchasePrice !== null) {
+            if ($openingStock > 0 && $purchasePrice > 0) {
                 $purchase = Purchase::create([
                     'supplier_id' => null,
                     'purchase_date' => now()->toDateString(),
@@ -142,8 +143,10 @@ class ProductController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id' => $product->id,
                     'quantity' => $openingStock,
+                    'remaining_qty' => $openingStock,
                     'purchase_price' => $purchasePrice,
-                    'selling_price' => $validated['sale_price'],
+                    'selling_price' => (int) $validated['sale_price'],
+                    'discount_amount' => 0,
                     'line_total' => $openingStock * $purchasePrice,
                 ]);
 
@@ -199,12 +202,18 @@ class ProductController extends Controller
 
             $validated['is_active'] = $request->has('is_active') ? $request->boolean('is_active') : $product->is_active;
 
-            if ($request->hasFile('image')) {
+            if ($request->boolean('remove_image')) {
                 if ($product->image && Storage::disk('public')->exists($product->image)) {
                     Storage::disk('public')->delete($product->image);
                 }
-
+                $validated['image'] = null;
+            } elseif ($request->hasFile('image')) {
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
                 $validated['image'] = $request->file('image')->store('products', 'public');
+            } else {
+                unset($validated['image']);
             }
 
             $product->update($validated);
@@ -302,7 +311,14 @@ class ProductController extends Controller
                     ->orWhere('sku', 'like', "%{$keyword}%")
                     ->orWhere('barcode', 'like', "%{$keyword}%");
             })
-            ->leftJoin('product_stocks', 'products.id', '=', 'product_stocks.product_id')
+            ->leftJoin('inventory_layers', function ($join) {
+                $join->on('products.id', '=', 'inventory_layers.product_id')
+                    ->whereIn('inventory_layers.id', function ($query) {
+                        $query->select(DB::raw('MAX(id)'))
+                            ->from('inventory_layers')
+                            ->groupBy('product_id');
+                    });
+            })
             ->select([
                 'products.id',
                 'products.name',
@@ -310,7 +326,10 @@ class ProductController extends Controller
                 'products.barcode',
                 'products.purchase_price',
                 'products.sale_price',
-                DB::raw('COALESCE(product_stocks.current_stock, 0) as current_stock')
+                'products.stock',
+                DB::raw('COALESCE((SELECT SUM(remaining_quantity) FROM inventory_layers WHERE product_id = products.id), 0) as current_stock'),
+                DB::raw('COALESCE(inventory_layers.unit_cost, products.purchase_price, 0) as last_purchase_price'),
+                DB::raw('COALESCE((SELECT AVG(unit_cost) FROM inventory_layers WHERE product_id = products.id AND remaining_quantity > 0), 0) as avg_cost')
             ])
             ->limit(10)
             ->get();

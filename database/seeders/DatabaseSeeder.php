@@ -25,5 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call(PermissionSeeder::class);
 
         $this->call(SuperadminSeeder::class);
+
+        $this->call(PaymentMethodSeeder::class);
     }
 }
