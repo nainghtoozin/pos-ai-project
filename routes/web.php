@@ -7,11 +7,13 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\UnitController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,7 @@ Route::get('/', function () {
 // Public product search for purchase
 Route::get('/products/live-search', [App\Http\Controllers\ProductController::class, 'liveSearch'])->name('products.liveSearch');
 Route::get('/purchases/search-products', [App\Http\Controllers\PurchaseController::class, 'searchProducts'])->name('purchases.searchProducts');
+Route::get('/products/branch/{branchId}/search', [App\Http\Controllers\ProductController::class, 'searchByBranch'])->name('products.searchByBranch');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -66,6 +69,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('suppliers', SupplierController::class);
     Route::get('suppliers/search', [SupplierController::class, 'search'])->name('suppliers.search');
 
+    // Customer Management routes
+    Route::resource('customers', CustomerController::class)->only(['index', 'store']);
+    Route::post('customers/quick-store', [CustomerController::class, 'quickStore'])->name('customers.quickStore');
+
     // Stock Management routes
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
     Route::get('stocks/{product}', [StockController::class, 'show'])->name('stocks.show');
@@ -73,6 +80,15 @@ Route::middleware('auth')->group(function () {
     // Stock Adjustment routes - custom route must come BEFORE resource
     Route::get('stock_adjustments/{product}/get-stock', [StockAdjustmentController::class, 'getProductStock'])->name('stock_adjustments.getStock');
     Route::resource('stock_adjustments', StockAdjustmentController::class);
+
+    // Sales routes
+    Route::resource('sales', SaleController::class);
+    
+    // POS routes
+    Route::get('pos', [SaleController::class, 'create'])->name('pos.index');
+    Route::post('sales/draft', [SaleController::class, 'storeDraft'])->name('sales.draft');
+    Route::post('sales/suspend', [SaleController::class, 'storeSuspended'])->name('sales.suspend');
+    Route::post('sales/multiple-payment', [SaleController::class, 'storeMultiplePayment'])->name('sales.multiplePayment');
 
     // Tax management routes
     Route::resource('taxes', TaxController::class);

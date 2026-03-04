@@ -152,6 +152,11 @@
                     </div>
                 </div>
 
+                <a href="{{ route('sales.create') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition {{ request()->routeIs('sales.create') ? 'bg-slate-700 text-white' : '' }}">
+                    <i class="fas fa-cash-register w-5"></i>
+                    <span>POS Sale</span>
+                </a>
+
                 <div class="menu-item" x-data="{ open: {{ request()->is('purchases*') || request()->is('suppliers*') ? 'true' : 'false' }} }">
                     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 transition">
                         <div class="flex items-center gap-3">
@@ -185,7 +190,12 @@
                             <i class="fas fa-users w-4"></i>
                             <span>Customers</span>
                         </a>
-                        <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                        <a href="{{ route('sales.index') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition {{ request()->routeIs('sales.index') || request()->routeIs('sales.show') ? 'text-white bg-slate-700' : '' }}">
+                            <i class="fas fa-receipt w-4"></i>
+                            <span>Sales History</span>
+                        </a>
+                    </div>
+                </div>
                             <i class="fas fa-users-cog w-4"></i>
                             <span>Customer Groups</span>
                         </a>

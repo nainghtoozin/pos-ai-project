@@ -15,6 +15,7 @@ use App\Models\Unit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Models\BranchStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -332,6 +333,49 @@ class ProductController extends Controller
                 DB::raw('COALESCE((SELECT AVG(unit_cost) FROM inventory_layers WHERE product_id = products.id AND remaining_quantity > 0), 0) as avg_cost')
             ])
             ->limit(10)
+            ->get();
+
+        return response()->json($products);
+    }
+
+    public function searchByBranch(Request $request, int $branchId): JsonResponse
+    {
+        $keyword = $request->get('q', '');
+        $categoryId = $request->get('category_id');
+        $brandId = $request->get('brand_id');
+        
+        $query = Product::select([
+                'products.id',
+                'products.name',
+                'products.sku',
+                'products.barcode',
+                'products.sale_price',
+                'products.image',
+                'products.category_id',
+                'products.brand_id',
+                DB::raw('COALESCE(products.stock, 0) as current_stock'),
+                DB::raw('COALESCE((SELECT AVG(unit_cost) FROM inventory_layers WHERE product_id = products.id AND remaining_quantity > 0), 0) as avg_cost')
+            ])
+            ->where('products.is_active', true);
+
+        if ($categoryId) {
+            $query->where('products.category_id', $categoryId);
+        }
+
+        if ($brandId) {
+            $query->where('products.brand_id', $brandId);
+        }
+
+        if ($keyword) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('products.name', 'like', "%{$keyword}%")
+                    ->orWhere('products.sku', 'like', "%{$keyword}%")
+                    ->orWhere('products.barcode', 'like', "%{$keyword}%");
+            });
+        }
+
+        $products = $query->having('current_stock', '>', 0)
+            ->limit(50)
             ->get();
 
         return response()->json($products);
