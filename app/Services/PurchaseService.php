@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Product;
-use App\Models\ProductStock;
 use App\Models\Purchase;
 use App\Models\PurchaseLine;
 use App\Models\StockMovement;
@@ -87,15 +86,11 @@ class PurchaseService
                 'notes' => $data['notes'] ?? null,
             ]);
 
+            $this->reverseStockAndMovements($purchase);
             $purchase->lines()->delete();
             $this->createPurchaseLines($purchase, $data['lines']);
 
-            if ($oldStatus !== Purchase::STATUS_RECEIVED && $newStatus === Purchase::STATUS_RECEIVED) {
-                $this->updateStockAndCreateMovements($purchase);
-            } elseif ($oldStatus === Purchase::STATUS_RECEIVED && $newStatus !== Purchase::STATUS_RECEIVED) {
-                $this->reverseStockAndMovements($purchase);
-            } elseif ($newStatus === Purchase::STATUS_RECEIVED) {
-                $this->reverseStockAndMovements($purchase);
+            if ($newStatus === Purchase::STATUS_RECEIVED) {
                 $this->updateStockAndCreateMovements($purchase);
             }
 
@@ -146,9 +141,11 @@ class PurchaseService
                 'product_id' => $line['product_id'],
                 'quantity' => $quantity,
                 'purchase_price' => $purchasePrice,
-                'selling_price' => $sellingPrice,
+                'selling_price' => $sellingPrice ?? 0,
                 'discount_amount' => $discountAmount,
                 'line_total' => $lineTotal,
+                'source_type' => 'purchase',
+                'source_id' => $purchase->id,
             ]);
 
             if ($sellingPrice !== null) {
@@ -165,35 +162,31 @@ class PurchaseService
     protected function updateStockAndCreateMovements(Purchase $purchase): void
     {
         foreach ($purchase->lines as $line) {
-            $stock = ProductStock::firstOrNew(['product_id' => $line->product_id]);
-            $stock->current_stock = ($stock->current_stock ?? 0) + $line->quantity;
-            $stock->save();
-
-            StockMovement::create([
-                'product_id' => $line->product_id,
-                'type' => StockMovement::TYPE_PURCHASE,
-                'quantity' => $line->quantity,
-                'reference_no' => $purchase->id,
-                'created_by' => $purchase->created_by,
-                'notes' => 'Purchase #' . $purchase->id,
-            ]);
+            PurchaseLine::addStock(
+                $line->product_id,
+                $line->quantity,
+                $line->purchase_price,
+                PurchaseLine::SOURCE_PURCHASE,
+                $purchase->id,
+                $line->selling_price
+            );
         }
     }
 
     protected function reverseStockAndMovements(Purchase $purchase): void
     {
         foreach ($purchase->lines as $line) {
-            $stock = ProductStock::where('product_id', $line->product_id)->first();
-            if ($stock) {
-                $stock->current_stock = max(0, $stock->current_stock - $line->quantity);
-                $stock->save();
-            }
-
-            StockMovement::where('reference_no', $purchase->id)
-                ->where('product_id', $line->product_id)
-                ->where('type', StockMovement::TYPE_PURCHASE)
-                ->delete();
+            $line->remaining_qty = 0;
+            $line->save();
         }
+
+        StockMovement::where('reference_no', (string) $purchase->id)
+            ->whereIn('type', [
+                StockMovement::TYPE_PURCHASE,
+                StockMovement::TYPE_OPENING,
+                StockMovement::TYPE_ADJUSTMENT_IN,
+            ])
+            ->delete();
     }
 
     public function calculatePurchaseTotals(array $lines, array $discountData): array

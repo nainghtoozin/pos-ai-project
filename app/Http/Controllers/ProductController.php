@@ -7,15 +7,14 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
-use App\Models\ProductStock;
 use App\Models\Purchase;
 use App\Models\PurchaseLine;
+use App\Models\StockMovement;
 use App\Models\Tax;
 use App\Models\Unit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use App\Models\BranchStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -46,11 +45,11 @@ class ProductController extends Controller
                 'latest_purchase_price'
             )
             ->selectSub(
-                ProductStock::select('current_stock')
-                    ->whereColumn('product_stocks.product_id', 'products.id'),
+                StockMovement::selectRaw('COALESCE(SUM(quantity), 0)')
+                    ->whereColumn('stock_movements.product_id', 'products.id'),
                 'current_stock'
             )
-            ->with(['category', 'brand', 'unit', 'tax', 'stock'])
+            ->with(['category', 'brand', 'unit:id,name,short_name', 'tax'])
             ->when($filters['search'], fn($q) => $q->where(function($query) use ($filters) {
                 $query->where('name', 'like', "%{$filters['search']}%")
                     ->orWhere('sku', 'like', "%{$filters['search']}%")
@@ -63,11 +62,13 @@ class ProductController extends Controller
             );
 
         if ($filters['stock_status']) {
-            $query->whereHas('stock', function($q) use ($filters, $lowStockThreshold) {
+            $query->whereHas('stockMovements', function($q) use ($filters, $lowStockThreshold) {
+                $q->selectRaw('SUM(quantity) as total')
+                  ->groupBy('product_id');
                 match($filters['stock_status']) {
-                    'in_stock' => $q->where('current_stock', '>', 0),
-                    'out_of_stock' => $q->where('current_stock', '<=', 0),
-                    'low_stock' => $q->where('current_stock', '>', 0)->where('current_stock', '<=', $lowStockThreshold),
+                    'in_stock' => $q->having('total', '>', 0),
+                    'out_of_stock' => $q->having('total', '<=', 0),
+                    'low_stock' => $q->having('total', '>', 0)->having('total', '<=', $lowStockThreshold),
                     default => null,
                 };
             });
@@ -136,29 +137,20 @@ class ProductController extends Controller
                     'supplier_id' => null,
                     'purchase_date' => now()->toDateString(),
                     'total_amount' => $openingStock * $purchasePrice,
+                    'paid_amount' => $openingStock * $purchasePrice,
+                    'due_amount' => 0,
+                    'payment_status' => 'paid',
                     'notes' => 'Opening stock for product: ' . $product->name,
                     'status' => 'received',
                 ]);
 
-                PurchaseLine::create([
-                    'purchase_id' => $purchase->id,
-                    'product_id' => $product->id,
-                    'quantity' => $openingStock,
-                    'remaining_qty' => $openingStock,
-                    'purchase_price' => $purchasePrice,
-                    'selling_price' => (int) $validated['sale_price'],
-                    'discount_amount' => 0,
-                    'line_total' => $openingStock * $purchasePrice,
-                ]);
-
-                ProductStock::updateOrCreate(
-                    ['product_id' => $product->id],
-                    ['current_stock' => $openingStock]
-                );
-            } else {
-                ProductStock::updateOrCreate(
-                    ['product_id' => $product->id],
-                    ['current_stock' => 0]
+                PurchaseLine::addStock(
+                    $product->id,
+                    $openingStock,
+                    $purchasePrice,
+                    PurchaseLine::SOURCE_OPENING_STOCK,
+                    $purchase->id,
+                    (int) $validated['sale_price']
                 );
             }
         });
@@ -251,38 +243,36 @@ class ProductController extends Controller
         $type = $request->input('type');
         $note = $request->input('note');
 
-        $currentStock = ProductStock::where('product_id', $product->id)->value('current_stock') ?? 0;
+        $currentStock = PurchaseLine::getCurrentStock($product->id);
 
         if ($type === 'deduction' && $quantity > $currentStock) {
             return redirect()->back()->with('error', 'Cannot deduct more stock than available. Current stock: ' . $currentStock);
         }
 
         DB::transaction(function () use ($product, $quantity, $purchasePrice, $type, $note, $currentStock) {
-            $purchase = Purchase::create([
-                'supplier_id' => null,
-                'purchase_date' => now()->toDateString(),
-                'total_amount' => $quantity * $purchasePrice,
-                'notes' => ($type === 'deduction' ? 'Stock deduction' : 'Opening stock') . ' for product: ' . $product->name . ($note ? ' - ' . $note : ''),
-                'status' => 'received',
-            ]);
+            if ($type === 'addition') {
+                $purchase = Purchase::create([
+                    'supplier_id' => null,
+                    'purchase_date' => now()->toDateString(),
+                    'total_amount' => $quantity * $purchasePrice,
+                    'paid_amount' => $quantity * $purchasePrice,
+                    'due_amount' => 0,
+                    'payment_status' => 'paid',
+                    'notes' => 'Opening stock for product: ' . $product->name . ($note ? ' - ' . $note : ''),
+                    'status' => 'received',
+                ]);
 
-            $effectiveQty = $type === 'deduction' ? -$quantity : $quantity;
-
-            PurchaseLine::create([
-                'purchase_id' => $purchase->id,
-                'product_id' => $product->id,
-                'quantity' => $quantity,
-                'purchase_price' => $purchasePrice,
-                'selling_price' => $product->sale_price,
-                'line_total' => $quantity * $purchasePrice,
-            ]);
-
-            $newStock = ($currentStock ?? 0) + $effectiveQty;
-
-            ProductStock::updateOrCreate(
-                ['product_id' => $product->id],
-                ['current_stock' => $newStock]
-            );
+                PurchaseLine::addStock(
+                    $product->id,
+                    $quantity,
+                    $purchasePrice,
+                    PurchaseLine::SOURCE_OPENING_STOCK,
+                    $purchase->id,
+                    $product->sale_price
+                );
+            } else {
+                $fifoResult = PurchaseLine::deductFIFO($product->id, $quantity, 'opening_stock_deduction');
+            }
         });
 
         return redirect()->route('products.index')->with('success', 'Stock updated successfully.');
@@ -312,28 +302,23 @@ class ProductController extends Controller
                     ->orWhere('sku', 'like', "%{$keyword}%")
                     ->orWhere('barcode', 'like', "%{$keyword}%");
             })
-            ->leftJoin('inventory_layers', function ($join) {
-                $join->on('products.id', '=', 'inventory_layers.product_id')
-                    ->whereIn('inventory_layers.id', function ($query) {
-                        $query->select(DB::raw('MAX(id)'))
-                            ->from('inventory_layers')
-                            ->groupBy('product_id');
-                    });
-            })
             ->select([
                 'products.id',
                 'products.name',
                 'products.sku',
                 'products.barcode',
-                'products.purchase_price',
                 'products.sale_price',
                 'products.stock',
-                DB::raw('COALESCE((SELECT SUM(remaining_quantity) FROM inventory_layers WHERE product_id = products.id), 0) as current_stock'),
-                DB::raw('COALESCE(inventory_layers.unit_cost, products.purchase_price, 0) as last_purchase_price'),
-                DB::raw('COALESCE((SELECT AVG(unit_cost) FROM inventory_layers WHERE product_id = products.id AND remaining_quantity > 0), 0) as avg_cost')
+                DB::raw('COALESCE((SELECT SUM(quantity) FROM stock_movements WHERE product_id = products.id), 0) as current_stock'),
             ])
+            ->with('unit:id,short_name')
             ->limit(10)
             ->get();
+
+        $products = $products->map(function ($product) {
+            $product->unit_short_name = $product->unit?->short_name ?? 'pcs';
+            return $product;
+        });
 
         return response()->json($products);
     }
@@ -353,9 +338,10 @@ class ProductController extends Controller
                 'products.image',
                 'products.category_id',
                 'products.brand_id',
-                DB::raw('COALESCE(products.stock, 0) as current_stock'),
-                DB::raw('COALESCE((SELECT AVG(unit_cost) FROM inventory_layers WHERE product_id = products.id AND remaining_quantity > 0), 0) as avg_cost')
+                'products.unit_id',
+                DB::raw('COALESCE((SELECT SUM(quantity) FROM stock_movements WHERE product_id = products.id), 0) as current_stock'),
             ])
+            ->with('unit:id,short_name')
             ->where('products.is_active', true);
 
         if ($categoryId) {
@@ -377,6 +363,11 @@ class ProductController extends Controller
         $products = $query->having('current_stock', '>', 0)
             ->limit(50)
             ->get();
+
+        $products = $products->map(function ($product) {
+            $product->unit_short_name = $product->unit?->short_name ?? 'pcs';
+            return $product;
+        });
 
         return response()->json($products);
     }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Purchase;
+use App\Models\PurchaseLine;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Models\ProductStock;
@@ -53,20 +54,12 @@ class PurchaseReturnService
                     'subtotal' => $subtotal,
                 ]);
 
-                $stock = ProductStock::where('product_id', $productId)->first();
-                if ($stock && $stock->current_stock >= $quantity) {
-                    $stock->current_stock -= $quantity;
-                    $stock->save();
-
-                    StockMovement::create([
-                        'product_id' => $productId,
-                        'type' => StockMovement::TYPE_PURCHASE_RETURN,
-                        'quantity' => $quantity,
-                        'reference_no' => $return->id,
-                        'created_by' => auth()->id(),
-                        'notes' => 'Purchase Return #' . $return->id,
-                    ]);
-                }
+                PurchaseLine::removeStock(
+                    $productId,
+                    $quantity,
+                    PurchaseLine::SOURCE_PURCHASE,
+                    $return->id
+                );
             }
 
             $return->total_return_amount = $totalReturnAmount;

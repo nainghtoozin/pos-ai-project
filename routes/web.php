@@ -72,6 +72,7 @@ Route::middleware('auth')->group(function () {
     // Customer Management routes
     Route::resource('customers', CustomerController::class)->only(['index', 'store']);
     Route::post('customers/quick-store', [CustomerController::class, 'quickStore'])->name('customers.quickStore');
+    Route::get('api/customers/list', [CustomerController::class, 'list'])->name('api.customers.list');
 
     // Stock Management routes
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
@@ -92,6 +93,7 @@ Route::middleware('auth')->group(function () {
 
     // Tax management routes
     Route::resource('taxes', TaxController::class);
+    Route::get('api/taxes/list', [TaxController::class, 'list'])->name('api.taxes.list');
 
     // Payment Method management routes
     Route::resource('payment_methods', PaymentMethodController::class)->only(['index', 'store', 'edit', 'update', 'destroy']);

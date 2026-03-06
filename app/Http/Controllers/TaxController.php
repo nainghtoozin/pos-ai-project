@@ -52,4 +52,24 @@ class TaxController extends Controller
 
         return redirect()->route('taxes.index')->with('success', 'Tax deleted successfully.');
     }
+
+    public function list()
+    {
+        try {
+            $taxes = Tax::select('id', 'name', 'percentage')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $taxes
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load taxes',
+                'data' => []
+            ], 500);
+        }
+    }
 }

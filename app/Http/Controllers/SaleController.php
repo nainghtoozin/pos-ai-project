@@ -6,9 +6,9 @@ use App\Http\Requests\StoreSaleRequest;
 use App\Models\Branch;
 use App\Models\BranchStock;
 use App\Models\Customer;
-use App\Models\InventoryLayer;
 use App\Models\PaymentMethod;
 use App\Models\Product;
+use App\Models\PurchaseLine;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePayment;
@@ -120,9 +120,7 @@ class SaleController extends Controller
                 
                 if ($deductStock) {
                     foreach ($items as $item) {
-                        $availableStock = BranchStock::where('branch_id', $branchId)
-                            ->where('product_id', $item['product_id'])
-                            ->value('quantity') ?? 0;
+                        $availableStock = PurchaseLine::getCurrentStock($item['product_id']);
 
                         if ($availableStock < $item['quantity']) {
                             $product = Product::find($item['product_id']);
@@ -141,7 +139,12 @@ class SaleController extends Controller
                     $quantity = $item['quantity'];
                     $unitPrice = $item['unit_price'];
 
-                    $costPrice = $deductStock ? $this->calculateFIFOCost($product->id, $quantity) : 0;
+                    $costPrice = 0;
+                    if ($deductStock) {
+                        $fifoResult = PurchaseLine::deductFIFO($product->id, $quantity, 'sale');
+                        $costPrice = $quantity > 0 ? intval($fifoResult['total_cost'] / $quantity) : 0;
+                    }
+                    
                     $itemTotal = $quantity * $unitPrice;
                     $itemCost = $quantity * $costPrice;
                     $itemProfit = $itemTotal - $itemCost;
@@ -208,15 +211,10 @@ class SaleController extends Controller
                 ]);
 
                 foreach ($saleItemsData as $itemData) {
-                    $saleItem = SaleItem::create([
+                    SaleItem::create([
                         'sale_id' => $sale->id,
                         ...$itemData,
                     ]);
-
-                    if ($deductStock) {
-                        $this->deductFromInventory($saleItem, $branchId, $sale->invoice_no);
-                        $this->deductFromBranchStock($saleItem, $branchId);
-                    }
                 }
 
                 if ($paidAmount > 0) {
@@ -264,78 +262,6 @@ class SaleController extends Controller
         }
     }
 
-    protected function calculateFIFOCost(int $productId, int $quantity): int
-    {
-        $layers = InventoryLayer::where('product_id', $productId)
-            ->where('remaining_quantity', '>', 0)
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        if ($layers->isEmpty()) {
-            return 0;
-        }
-
-        $totalCost = 0;
-        $remainingQty = $quantity;
-
-        foreach ($layers as $layer) {
-            if ($remainingQty <= 0) break;
-
-            $deductFromThis = min($layer->remaining_quantity, $remainingQty);
-            $totalCost += $deductFromThis * $layer->unit_cost;
-            $remainingQty -= $deductFromThis;
-        }
-
-        return $quantity > 0 ? intval($totalCost / $quantity) : 0;
-    }
-
-    protected function deductFromInventory(SaleItem $item, int $branchId, string $referenceNo): void
-    {
-        $productId = $item->product_id;
-        $quantity = $item->quantity;
-
-        $layers = InventoryLayer::where('product_id', $productId)
-            ->where('remaining_quantity', '>', 0)
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        $totalAvailable = $layers->sum('remaining_quantity');
-
-        if ($totalAvailable < $quantity) {
-            throw new \Exception("Insufficient inventory for product ID: {$productId}");
-        }
-
-        foreach ($layers as $layer) {
-            if ($quantity <= 0) break;
-
-            $deductFromThis = min($layer->remaining_quantity, $quantity);
-            $layer->remaining_quantity -= $deductFromThis;
-            $layer->save();
-
-            $quantity -= $deductFromThis;
-        }
-
-        StockMovement::create([
-            'product_id' => $productId,
-            'type' => 'sale',
-            'quantity' => -$item->quantity,
-            'reference_no' => $referenceNo,
-            'created_by' => auth()->id(),
-            'notes' => 'Sale - Branch: ' . $branchId,
-        ]);
-    }
-
-    protected function deductFromBranchStock(SaleItem $item, int $branchId): void
-    {
-        $branchStock = BranchStock::firstOrNew([
-            'branch_id' => $branchId,
-            'product_id' => $item->product_id,
-        ]);
-
-        $branchStock->quantity = ($branchStock->quantity ?? 0) - $item->quantity;
-        $branchStock->save();
-    }
-
     public function show(Sale $sale)
     {
         $sale->load(['branch', 'customer', 'user', 'items.product', 'payments']);
@@ -354,26 +280,12 @@ class SaleController extends Controller
 
         return DB::transaction(function () use ($sale) {
             foreach ($sale->items as $item) {
-                $layers = InventoryLayer::where('product_id', $item->product_id)
-                    ->orderBy('created_at', 'asc')
-                    ->get();
-
-                $remainingQty = $item->quantity;
-                foreach ($layers as $layer) {
-                    if ($remainingQty <= 0) break;
-                    $layer->remaining_quantity += min($layer->quantity, $remainingQty);
-                    $layer->save();
-                    $remainingQty -= min($layer->quantity, $remainingQty);
-                }
-
-                $branchStock = BranchStock::where('branch_id', $sale->branch_id)
-                    ->where('product_id', $item->product_id)
-                    ->first();
-                
-                if ($branchStock) {
-                    $branchStock->quantity += $item->quantity;
-                    $branchStock->save();
-                }
+                PurchaseLine::removeStock(
+                    $item->product_id,
+                    $item->quantity,
+                    'sale_cancellation',
+                    $sale->id
+                );
             }
 
             $sale->delete();

@@ -158,6 +158,7 @@
                         @forelse($products as $product)
                             @php
                                 $stock = $product->current_stock ?? 0;
+                                $unitShortName = $product->unit?->short_name ?? 'pcs';
                                 $viewData = [
                                     'id' => $product->id,
                                     'name' => $product->name,
@@ -179,7 +180,7 @@
                                     'id' => $product->id,
                                     'name' => $product->name,
                                     'current_stock' => $stock,
-                                    'unit_short_name' => $product->unit->short_name ?? null,
+                                    'unit_short_name' => $unitShortName,
                                 ];
                             @endphp
                             <tr class="even:bg-gray-50 hover:bg-indigo-50 transition duration-150">
@@ -202,24 +203,24 @@
                                 <td class="px-6 py-4">
                                     <span class="text-sm text-gray-600">{{ $product->category->name ?? '-' }}</span>
                                 </td>
-                                <td class="px-6 py-4 text-right">
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
                                     @if ($stock <= 0)
                                         <span
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                                            class="inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
                                             <i class="fas fa-times-circle"></i>
-                                            {{ \App\Helpers\NumberFormatter::format($stock) }}{{ $product->unit ? ' ' . $product->unit->short_name : '' }}
+                                            {{ \App\Helpers\NumberFormatter::format($stock) }} {{ $unitShortName }}
                                         </span>
                                     @elseif($stock <= $lowStockThreshold)
                                         <span
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                                            class="inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
                                             <i class="fas fa-exclamation-triangle"></i>
-                                            {{ \App\Helpers\NumberFormatter::format($stock) }}{{ $product->unit ? ' ' . $product->unit->short_name : '' }}
+                                            {{ \App\Helpers\NumberFormatter::format($stock) }} {{ $unitShortName }}
                                         </span>
                                     @else
                                         <span
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                            class="inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                             <i class="fas fa-check-circle"></i>
-                                            {{ \App\Helpers\NumberFormatter::format($stock) }}{{ $product->unit ? ' ' . $product->unit->short_name : '' }}
+                                            {{ \App\Helpers\NumberFormatter::format($stock) }} {{ $unitShortName }}
                                         </span>
                                     @endif
                                 </td>

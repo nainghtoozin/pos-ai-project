@@ -89,4 +89,25 @@ class CustomerController extends Controller
             'message' => 'Customer created successfully!'
         ]);
     }
+
+    public function list()
+    {
+        try {
+            $customers = Customer::select('id', 'name', 'mobile')
+                ->orderBy('name')
+                ->limit(50)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $customers
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load customers',
+                'data' => []
+            ], 500);
+        }
+    }
 }

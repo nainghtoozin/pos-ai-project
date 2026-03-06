@@ -161,7 +161,7 @@
                     <span class="text-2xl font-medium text-indigo-200">{{ $unitShortName }}</span>
                 </p>
                 <p class="text-indigo-200 text-xs mt-3">
-                    Last updated: {{ now()->format('Y-m-d H:i') }}
+                    Stock In ({{ $stockSummary['stock_in'] }}) - Stock Out ({{ $stockSummary['stock_out'] }})
                 </p>
             </div>
         </div>
